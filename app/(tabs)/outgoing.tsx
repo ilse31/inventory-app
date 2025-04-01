@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   Modal,
   FlatList,
-  Pressable,
+  TextInput,
 } from "react-native";
 import { Stack } from "expo-router";
 import { FormInput } from "@/components/FormInput";
@@ -19,15 +19,34 @@ import { Button } from "@/components/Button";
 import { ItemCard } from "@/components/ItemCard";
 import { SearchBar } from "@/components/SearchBar";
 import { Item } from "@/types/inventory";
-import { DollarSign, Save, Search, X } from "lucide-react-native";
-import { useInventoryStore } from "@/stores/inventory-store";
+import {
+  DollarSign,
+  Save,
+  Search,
+  X,
+  Layers,
+  ShoppingCart,
+  Trash2,
+  Plus,
+  Minus,
+} from "lucide-react-native";
 import { colors, theme } from "@/constants/Colors";
+import { useInventoryStore } from "@/stores/inventory-store";
+import { formatCurrency } from "@/utils/helper";
+
+// Type for cart item
+interface CartItem {
+  item: Item;
+  quantity: number;
+  sellingPrice: number;
+}
 
 export default function OutgoingScreen() {
-  const { items, recordTransaction, getItemsByStatus } = useInventoryStore();
+  const { items, recordMultipleTransactions, getItemsByStatus } =
+    useInventoryStore();
 
-  const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-  const [sellingPrice, setSellingPrice] = useState("");
+  // Cart state
+  const [cart, setCart] = useState<CartItem[]>([]);
   const [notes, setNotes] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -35,6 +54,12 @@ export default function OutgoingScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
+
+  // Current item being edited
+  const [currentItem, setCurrentItem] = useState<Item | null>(null);
+  const [currentQuantity, setCurrentQuantity] = useState("1");
+  const [currentSellingPrice, setCurrentSellingPrice] = useState("");
+  const [itemModalVisible, setItemModalVisible] = useState(false);
 
   // Get only items that are in stock
   useEffect(() => {
@@ -57,14 +82,8 @@ export default function OutgoingScreen() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!selectedItem) {
-      newErrors.item = "Please select an item";
-    }
-
-    if (!sellingPrice.trim()) {
-      newErrors.sellingPrice = "Selling price is required";
-    } else if (isNaN(Number(sellingPrice)) || Number(sellingPrice) <= 0) {
-      newErrors.sellingPrice = "Enter a valid price";
+    if (cart.length === 0) {
+      newErrors.cart = "Please add at least one item to the cart";
     }
 
     setErrors(newErrors);
@@ -77,66 +96,205 @@ export default function OutgoingScreen() {
     setLoading(true);
 
     try {
-      const { invoiceId } = recordTransaction(
-        "out",
-        {
-          id: selectedItem!.id,
-          category: selectedItem!.category,
-          description: selectedItem!.description,
-          purchasePrice: selectedItem!.purchasePrice,
-          sellingPrice: Number(sellingPrice),
-          imageUri: selectedItem!.imageUri,
-        },
-        1, // Quantity
-        notes,
-      );
+      // Prepare transaction items
+      const transactionItems = cart.map((cartItem) => ({
+        id: cartItem.item.id,
+        category: cartItem.item.category,
+        description: cartItem.item.description,
+        purchasePrice: cartItem.item.purchasePrice,
+        sellingPrice: cartItem.sellingPrice,
+        imageUri: cartItem.item.imageUri,
+        quantity: cartItem.quantity,
+      }));
+
+      const { invoiceId } = recordMultipleTransactions(transactionItems, notes);
 
       // Reset form
-      setSelectedItem(null);
-      setSellingPrice("");
+      setCart([]);
       setNotes("");
       setErrors({});
 
       Alert.alert(
         "Success",
-        `Item has been marked as sold. Invoice #${invoiceId} created.`,
+        `Items have been marked as sold. Invoice #${invoiceId} created.`,
         [{ text: "OK" }],
       );
     } catch (error) {
       console.error("Error recording transaction:", error);
-      Alert.alert("Error", "Failed to record outgoing item");
+      Alert.alert("Error", "Failed to record outgoing items");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSelectItem = (item: Item) => {
-    console.log("handleSelectItem called with item:", item); // Tambahkan log untuk debugging
-    setSelectedItem(item);
-    setModalVisible(false);
+  const openItemModal = (item: Item) => {
+    setCurrentItem(item);
 
-    // Pre-fill selling price with a suggested value (e.g., 20% markup)
-    const suggestedPrice = (item.purchasePrice * 1.2).toFixed(2);
-    setSellingPrice(suggestedPrice);
-  };
-
-  const renderItemInModal = ({ item }: { item: Item }) => {
-    console.log("Rendering item in modal:", item); // Tambahkan log untuk debugging
-    return (
-      <Pressable
-        onPress={() => {
-          console.log("Item clicked:", item); // Tambahkan log untuk memastikan klik terdeteksi
-          handleSelectItem(item);
-        }}
-      >
-        <ItemCard item={item} compact />
-      </Pressable>
+    // Check if item is already in cart
+    const existingCartItem = cart.find(
+      (cartItem) => cartItem.item.id === item.id,
     );
+
+    if (existingCartItem) {
+      setCurrentQuantity(existingCartItem.quantity.toString());
+      setCurrentSellingPrice(existingCartItem.sellingPrice.toString());
+    } else {
+      setCurrentQuantity("1");
+      // Pre-fill selling price with a suggested value (e.g., 20% markup)
+      const suggestedPrice = (item.purchasePrice * 1.2).toFixed(2);
+      setCurrentSellingPrice(suggestedPrice);
+    }
+
+    setItemModalVisible(true);
+    setModalVisible(false);
   };
+
+  const addToCart = () => {
+    if (!currentItem) return;
+
+    // Validate inputs
+    if (
+      !currentSellingPrice.trim() ||
+      isNaN(Number(currentSellingPrice)) ||
+      Number(currentSellingPrice) <= 0
+    ) {
+      Alert.alert("Invalid Price", "Please enter a valid selling price");
+      return;
+    }
+
+    if (
+      !currentQuantity.trim() ||
+      isNaN(Number(currentQuantity)) ||
+      Number(currentQuantity) <= 0 ||
+      !Number.isInteger(Number(currentQuantity))
+    ) {
+      Alert.alert(
+        "Invalid Quantity",
+        "Please enter a valid quantity (whole number)",
+      );
+      return;
+    }
+
+    if (Number(currentQuantity) > (currentItem.quantity || 0)) {
+      Alert.alert(
+        "Insufficient Stock",
+        `Only ${currentItem.quantity} available in stock`,
+      );
+      return;
+    }
+
+    // Check if item already exists in cart
+    const existingItemIndex = cart.findIndex(
+      (cartItem) => cartItem.item.id === currentItem.id,
+    );
+
+    if (existingItemIndex >= 0) {
+      // Update existing item
+      const updatedCart = [...cart];
+      updatedCart[existingItemIndex] = {
+        item: currentItem,
+        quantity: Number(currentQuantity),
+        sellingPrice: Number(currentSellingPrice),
+      };
+      setCart(updatedCart);
+    } else {
+      // Add new item to cart
+      setCart([
+        ...cart,
+        {
+          item: currentItem,
+          quantity: Number(currentQuantity),
+          sellingPrice: Number(currentSellingPrice),
+        },
+      ]);
+    }
+
+    setItemModalVisible(false);
+  };
+
+  const removeFromCart = (itemId: string) => {
+    setCart(cart.filter((cartItem) => cartItem.item.id !== itemId));
+  };
+
+  const calculateTotalProfit = () => {
+    return cart.reduce((total, cartItem) => {
+      const itemProfit =
+        (cartItem.sellingPrice - cartItem.item.purchasePrice) *
+        cartItem.quantity;
+      return total + itemProfit;
+    }, 0);
+  };
+
+  const calculateTotalAmount = () => {
+    return cart.reduce((total, cartItem) => {
+      return total + cartItem.sellingPrice * cartItem.quantity;
+    }, 0);
+  };
+
+  const renderItemInModal = ({ item }: { item: Item }) => (
+    <View onTouchStart={() => openItemModal(item)}>
+      <ItemCard item={item} compact />
+    </View>
+  );
+
+  const renderCartItem = ({ item }: { item: CartItem }) => (
+    <View style={styles.cartItem}>
+      <View style={styles.cartItemContent}>
+        <View style={styles.cartItemHeader}>
+          <Text style={styles.cartItemTitle} numberOfLines={1}>
+            {item.item.description}
+          </Text>
+          <TouchableOpacity
+            onPress={() => removeFromCart(item.item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <Trash2 size={16} color={colors.danger} />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.cartItemDetails}>
+          <View style={styles.cartItemDetail}>
+            <Text style={styles.cartItemLabel}>Quantity:</Text>
+            <Text style={styles.cartItemValue}>{item.quantity}</Text>
+          </View>
+
+          <View style={styles.cartItemDetail}>
+            <Text style={styles.cartItemLabel}>Price:</Text>
+            <Text style={styles.cartItemValue}>
+              {formatCurrency(item.sellingPrice)}
+            </Text>
+          </View>
+
+          <View style={styles.cartItemDetail}>
+            <Text style={styles.cartItemLabel}>Subtotal:</Text>
+            <Text style={styles.cartItemValue}>
+              {formatCurrency(item.sellingPrice * item.quantity)}
+            </Text>
+          </View>
+
+          <View style={styles.cartItemDetail}>
+            <Text style={styles.cartItemLabel}>Profit:</Text>
+            <Text style={[styles.cartItemValue, styles.profitText]}>
+              {formatCurrency(
+                (item.sellingPrice - item.item.purchasePrice) * item.quantity,
+              )}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        style={styles.editButton}
+        onPress={() => openItemModal(item.item)}
+      >
+        <Text style={styles.editButtonText}>Edit</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen options={{ title: "Record Outgoing Item" }} />
+      <Stack.Screen options={{ title: "Record Outgoing Items" }} />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -147,58 +305,74 @@ export default function OutgoingScreen() {
           contentContainerStyle={styles.scrollContent}
         >
           <View style={styles.formSection}>
-            <Text style={styles.sectionTitle}>Outgoing Item Details</Text>
-
-            <View style={styles.itemSelector}>
-              <Text style={styles.label}>Select Item</Text>
-
-              {selectedItem ? (
-                <View style={styles.selectedItemContainer}>
-                  <ItemCard item={selectedItem} compact />
-                  <TouchableOpacity
-                    style={styles.changeButton}
-                    onPress={() => setModalVisible(true)}
-                  >
-                    <Text style={styles.changeButtonText}>Change</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : (
-                <Button
-                  title="Select Item from Inventory"
-                  onPress={() => setModalVisible(true)}
-                  variant="outline"
-                  icon={<Search size={18} color={colors.primary} />}
-                  fullWidth
-                />
-              )}
-
-              {errors.item && (
-                <Text style={styles.errorText}>{errors.item}</Text>
-              )}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Outgoing Items</Text>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => setModalVisible(true)}
+              >
+                <ShoppingCart size={16} color={colors.text.light} />
+                <Text style={styles.addButtonText}>Add Items</Text>
+              </TouchableOpacity>
             </View>
 
-            <FormInput
-              label="Selling Price"
-              value={sellingPrice}
-              onChangeText={setSellingPrice}
-              placeholder="0.00"
-              keyboardType="numeric"
-              error={errors.sellingPrice}
-              leftIcon={<DollarSign size={16} color={colors.text.secondary} />}
-            />
-
-            {selectedItem && (
-              <View style={styles.profitPreview}>
-                <Text style={styles.profitLabel}>Profit Preview:</Text>
-                <Text style={styles.profitValue}>
-                  {selectedItem && sellingPrice
-                    ? `$${(
-                        Number(sellingPrice) - selectedItem.purchasePrice
-                      ).toFixed(2)}`
-                    : "$0.00"}
+            {cart.length === 0 ? (
+              <View style={styles.emptyCart}>
+                <ShoppingCart size={48} color={colors.text.tertiary} />
+                <Text style={styles.emptyCartText}>Your cart is empty</Text>
+                <Text style={styles.emptyCartSubtext}>
+                  Add items to record a sale
                 </Text>
+                <Button
+                  title="Add Items"
+                  onPress={() => setModalVisible(true)}
+                  variant="outline"
+                  style={styles.emptyCartButton}
+                />
               </View>
+            ) : (
+              <>
+                <FlatList
+                  data={cart}
+                  renderItem={renderCartItem}
+                  keyExtractor={(item) => item.item.id}
+                  scrollEnabled={false}
+                  ItemSeparatorComponent={() => (
+                    <View style={styles.cartItemSeparator} />
+                  )}
+                />
+
+                <View style={styles.cartSummary}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Items:</Text>
+                    <Text style={styles.summaryValue}>{cart.length}</Text>
+                  </View>
+
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Quantity:</Text>
+                    <Text style={styles.summaryValue}>
+                      {cart.reduce((total, item) => total + item.quantity, 0)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Amount:</Text>
+                    <Text style={styles.summaryValue}>
+                      {formatCurrency(calculateTotalAmount())}
+                    </Text>
+                  </View>
+
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Profit:</Text>
+                    <Text style={[styles.summaryValue, styles.profitText]}>
+                      {formatCurrency(calculateTotalProfit())}
+                    </Text>
+                  </View>
+                </View>
+              </>
             )}
+
+            {errors.cart && <Text style={styles.errorText}>{errors.cart}</Text>}
 
             <FormInput
               label="Notes (Optional)"
@@ -219,7 +393,7 @@ export default function OutgoingScreen() {
             icon={<Save size={18} color={colors.text.light} />}
             fullWidth
             style={styles.submitButton}
-            disabled={!selectedItem}
+            disabled={cart.length === 0}
           />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -265,6 +439,109 @@ export default function OutgoingScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Item Detail Modal */}
+      <Modal
+        visible={itemModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setItemModalVisible(false)}
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Item Details</Text>
+              <TouchableOpacity
+                onPress={() => setItemModalVisible(false)}
+                hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+              >
+                <X size={24} color={colors.text.primary} />
+              </TouchableOpacity>
+            </View>
+
+            {currentItem && (
+              <View style={styles.itemDetailContent}>
+                <ItemCard item={currentItem} />
+
+                <View style={styles.quantityContainer}>
+                  <Text style={styles.quantityLabel}>Quantity:</Text>
+                  <View style={styles.quantityControls}>
+                    <TouchableOpacity
+                      style={styles.quantityButton}
+                      onPress={() => {
+                        const newQuantity = Math.max(
+                          1,
+                          Number(currentQuantity) - 1,
+                        );
+                        setCurrentQuantity(newQuantity.toString());
+                      }}
+                    >
+                      <Minus size={16} color={colors.text.primary} />
+                    </TouchableOpacity>
+
+                    <TextInput
+                      style={styles.quantityInput}
+                      value={currentQuantity}
+                      onChangeText={setCurrentQuantity}
+                      keyboardType="numeric"
+                    />
+
+                    <TouchableOpacity
+                      style={styles.quantityButton}
+                      onPress={() => {
+                        const newQuantity = Math.min(
+                          currentItem.quantity || 0,
+                          Number(currentQuantity) + 1,
+                        );
+                        setCurrentQuantity(newQuantity.toString());
+                      }}
+                    >
+                      <Plus size={16} color={colors.text.primary} />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <Text style={styles.stockInfo}>
+                  Available in stock:{" "}
+                  <Text style={styles.stockCount}>{currentItem.quantity}</Text>
+                </Text>
+
+                <FormInput
+                  label="Selling Price"
+                  value={currentSellingPrice}
+                  onChangeText={setCurrentSellingPrice}
+                  placeholder="0.00"
+                  keyboardType="numeric"
+                  leftIcon={
+                    <DollarSign size={16} color={colors.text.secondary} />
+                  }
+                />
+
+                <View style={styles.profitPreview}>
+                  <Text style={styles.profitLabel}>Profit Preview:</Text>
+                  <Text style={styles.profitValue}>
+                    {currentSellingPrice && currentQuantity
+                      ? formatCurrency(
+                          (Number(currentSellingPrice) -
+                            currentItem.purchasePrice) *
+                            Number(currentQuantity),
+                        )
+                      : formatCurrency(0)}
+                  </Text>
+                </View>
+
+                <Button
+                  title="Add to Cart"
+                  onPress={addToCart}
+                  icon={<ShoppingCart size={18} color={colors.text.light} />}
+                  fullWidth
+                  style={styles.addToCartButton}
+                />
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -290,37 +567,125 @@ const styles = StyleSheet.create({
     marginBottom: theme.spacing.md,
     ...theme.shadows.small,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: theme.spacing.md,
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: "600",
     color: colors.text.primary,
-    marginBottom: theme.spacing.md,
   },
-  itemSelector: {
-    marginBottom: theme.spacing.md,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: colors.text.secondary,
-    marginBottom: theme.spacing.xs,
-  },
-  selectedItemContainer: {
+  addButton: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    backgroundColor: colors.primary,
+    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.sm,
+    borderRadius: theme.borderRadius.md,
+  },
+  addButtonText: {
+    color: colors.text.light,
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  emptyCart: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing.xl,
+  },
+  emptyCartText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: colors.text.primary,
+    marginTop: theme.spacing.md,
+  },
+  emptyCartSubtext: {
+    fontSize: 14,
+    color: colors.text.tertiary,
+    marginBottom: theme.spacing.md,
+  },
+  emptyCartButton: {
+    marginTop: theme.spacing.md,
+  },
+  cartItem: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: colors.card,
     borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.xs,
+    padding: theme.spacing.sm,
+  },
+  cartItemContent: {
+    flex: 1,
+  },
+  cartItemHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: theme.spacing.xs,
   },
-  changeButton: {
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
+  cartItemTitle: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text.primary,
+    flex: 1,
   },
-  changeButtonText: {
+  cartItemDetails: {
+    gap: 2,
+  },
+  cartItemDetail: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  cartItemLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  cartItemValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: colors.text.primary,
+  },
+  profitText: {
+    color: colors.success,
+  },
+  editButton: {
+    marginLeft: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.sm,
+    paddingVertical: theme.spacing.xs,
+    backgroundColor: colors.primary + "20",
+    borderRadius: theme.borderRadius.sm,
+  },
+  editButtonText: {
     color: colors.primary,
     fontWeight: "500",
+  },
+  cartItemSeparator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: theme.spacing.sm,
+  },
+  cartSummary: {
+    backgroundColor: colors.card,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginTop: theme.spacing.md,
+  },
+  summaryRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 4,
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  summaryValue: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: colors.text.primary,
   },
   errorText: {
     color: colors.danger,
@@ -330,28 +695,11 @@ const styles = StyleSheet.create({
   notesInput: {
     height: 80,
     textAlignVertical: "top",
+    marginTop: theme.spacing.md,
   },
   submitButton: {
     marginTop: theme.spacing.md,
     marginBottom: theme.spacing.xl,
-  },
-  profitPreview: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: colors.card,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    marginBottom: theme.spacing.md,
-  },
-  profitLabel: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  profitValue: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: colors.success,
   },
   modalContainer: {
     flex: 1,
@@ -391,5 +739,82 @@ const styles = StyleSheet.create({
   emptyText: {
     color: colors.text.tertiary,
     fontSize: 16,
+  },
+  itemDetailContent: {
+    padding: theme.spacing.xs,
+  },
+  quantityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginVertical: theme.spacing.md,
+  },
+  quantityLabel: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text.primary,
+  },
+  quantityControls: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  quantityButton: {
+    width: 36,
+    height: 36,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: theme.borderRadius.sm,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  quantityInput: {
+    width: 50,
+    height: 36,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: theme.borderRadius.sm,
+    textAlign: "center",
+    marginHorizontal: theme.spacing.xs,
+    fontSize: 16,
+    color: colors.text.primary,
+  },
+  stockInfo: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginBottom: theme.spacing.md,
+  },
+  stockCount: {
+    fontWeight: "600",
+    color: colors.primary,
+  },
+  profitPreview: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.card,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    marginVertical: theme.spacing.md,
+  },
+  profitLabel: {
+    fontSize: 14,
+    color: colors.text.secondary,
+  },
+  profitValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: colors.success,
+  },
+  addToCartButton: {
+    marginTop: theme.spacing.md,
+  },
+  TextInput: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: theme.borderRadius.md,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+    fontSize: 16,
+    color: colors.text.primary,
   },
 });

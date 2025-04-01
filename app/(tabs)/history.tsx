@@ -11,36 +11,33 @@ import {
   Image,
 } from "react-native";
 import { Stack } from "expo-router";
-
 import { SearchBar } from "@/components/SearchBar";
 import { EmptyState } from "@/components/EmptyState";
 import { InvoiceCard } from "@/components/InvoiceCard";
 import { Invoice, Item } from "@/types/inventory";
-import { X, Package, Printer, Share } from "lucide-react-native";
+import { X, Package, Printer, Share, Layers } from "lucide-react-native";
 import { useInventoryStore } from "@/stores/inventory-store";
 import { colors, theme } from "@/constants/Colors";
-import { formatCurrency } from "@/utils/helper";
-import dayjs from "dayjs";
+import { formatCurrency, formatDate } from "@/utils/helper";
+import { getCategoryLabel } from "@/constants/Category";
 
 export default function HistoryScreen() {
   const { invoices, items, getItemById } = useInventoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
-  const formatDate = (date: string | Date) => {
-    return dayjs(date).format("MMMM D, YYYY"); // Example: "March 31, 2025"
-  };
+
   const filteredInvoices =
     searchQuery.trim() === ""
       ? [...invoices].sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
         )
       : invoices
           .filter((invoice) =>
-            invoice.id.toLowerCase().includes(searchQuery.toLowerCase())
+            invoice.id.toLowerCase().includes(searchQuery.toLowerCase()),
           )
           .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
           );
 
   const handleInvoicePress = (invoice: Invoice) => {
@@ -61,16 +58,10 @@ export default function HistoryScreen() {
     });
   };
 
-  const getCategoryLabel = (category: string) => {
-    const categoryLabels: Record<string, string> = {
-      electronics: "Electronics",
-      furniture: "Furniture",
-      clothing: "Clothing",
-      groceries: "Groceries",
-      // Add more categories as needed
-    };
-
-    return categoryLabels[category] || "Unknown Category";
+  // Calculate total quantity for the selected invoice
+  const getTotalQuantity = () => {
+    if (!selectedInvoice) return 0;
+    return selectedInvoice.items.reduce((sum, item) => sum + item.quantity, 0);
   };
 
   return (
@@ -81,11 +72,11 @@ export default function HistoryScreen() {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder='Search by invoice number...'
+          placeholder="Search by invoice number..."
         />
 
         {invoices.length === 0 ? (
-          <EmptyState type='history' />
+          <EmptyState type="history" />
         ) : (
           <FlatList
             data={filteredInvoices}
@@ -104,7 +95,7 @@ export default function HistoryScreen() {
       {/* Invoice Detail Modal */}
       <Modal
         visible={modalVisible}
-        animationType='slide'
+        animationType="slide"
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
@@ -131,7 +122,10 @@ export default function HistoryScreen() {
 
                 <View style={styles.divider} />
 
-                <Text style={styles.sectionTitle}>Items</Text>
+                <Text style={styles.sectionTitle}>
+                  Items ({selectedInvoice.items.length}) - Total Qty:{" "}
+                  {getTotalQuantity()}
+                </Text>
                 {getInvoiceItems().map((invoiceItem, index) => {
                   const itemData = invoiceItem.item as Item | undefined;
 
@@ -161,6 +155,13 @@ export default function HistoryScreen() {
                           </Text>
                         )}
 
+                        <View style={styles.quantityRow}>
+                          <Layers size={14} color={colors.text.secondary} />
+                          <Text style={styles.quantityText}>
+                            Quantity: {invoiceItem.quantity}
+                          </Text>
+                        </View>
+
                         <View style={styles.priceRow}>
                           <Text style={styles.priceLabel}>Purchase:</Text>
                           <Text style={styles.priceValue}>
@@ -176,7 +177,7 @@ export default function HistoryScreen() {
                         </View>
 
                         <View style={styles.priceRow}>
-                          <Text style={styles.priceLabel}>Profit:</Text>
+                          <Text style={styles.priceLabel}>Unit Profit:</Text>
                           <Text
                             style={[
                               styles.priceValue,
@@ -185,7 +186,32 @@ export default function HistoryScreen() {
                           >
                             {formatCurrency(
                               invoiceItem.sellingPrice -
-                                invoiceItem.purchasePrice
+                                invoiceItem.purchasePrice,
+                            )}
+                          </Text>
+                        </View>
+
+                        <View style={styles.priceRow}>
+                          <Text style={styles.priceLabel}>Total:</Text>
+                          <Text style={styles.priceValue}>
+                            {formatCurrency(
+                              invoiceItem.sellingPrice * invoiceItem.quantity,
+                            )}
+                          </Text>
+                        </View>
+
+                        <View style={styles.priceRow}>
+                          <Text style={styles.priceLabel}>Item Profit:</Text>
+                          <Text
+                            style={[
+                              styles.priceValue,
+                              { color: colors.success },
+                            ]}
+                          >
+                            {formatCurrency(
+                              (invoiceItem.sellingPrice -
+                                invoiceItem.purchasePrice) *
+                                invoiceItem.quantity,
                             )}
                           </Text>
                         </View>
@@ -197,6 +223,20 @@ export default function HistoryScreen() {
                 <View style={styles.divider} />
 
                 <View style={styles.summaryContainer}>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Items:</Text>
+                    <Text style={styles.summaryValue}>
+                      {selectedInvoice.items.length}
+                    </Text>
+                  </View>
+
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Quantity:</Text>
+                    <Text style={styles.summaryValue}>
+                      {getTotalQuantity()}
+                    </Text>
+                  </View>
+
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Total Amount:</Text>
                     <Text style={styles.summaryValue}>
@@ -345,7 +385,17 @@ const styles = StyleSheet.create({
   itemCategory: {
     fontSize: 14,
     color: colors.text.secondary,
+    marginBottom: 4,
+  },
+  quantityRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: theme.spacing.sm,
+  },
+  quantityText: {
+    fontSize: 14,
+    color: colors.text.secondary,
+    marginLeft: 4,
   },
   priceRow: {
     flexDirection: "row",

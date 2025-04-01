@@ -8,23 +8,50 @@ import {
   RefreshControl,
   SafeAreaView,
 } from "react-native";
-import { router, Stack, useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { ItemCard } from "@/components/ItemCard";
 import { SearchBar } from "@/components/SearchBar";
 import { EmptyState } from "@/components/EmptyState";
 import { Button } from "@/components/Button";
 import { Item } from "@/types/inventory";
-import { Plus, Filter } from "lucide-react-native";
+import { Plus, Filter, Layers } from "lucide-react-native";
 import { useInventoryStore } from "@/stores/inventory-store";
 import { colors, theme } from "@/constants/Colors";
-import { useRoute } from "@react-navigation/native";
+// import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function InventoryScreen() {
   const navigate = useRouter();
-  const { items, searchItems } = useInventoryStore();
+  const { items, searchItems, getTotalStock, getItemsByStatus } =
+    useInventoryStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredItems, setFilteredItems] = useState<Item[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  const totalQuantityOut = items
+    .filter((item) => item.status === "out")
+    .reduce((sum, item) => sum + (item.quantity || 0), 0);
+
+  const totalQuantity = items.reduce(
+    (sum, item) => sum + (item.quantity || 0),
+    0,
+  );
+
+  // Get only incoming items
+  const incomingItems = getItemsByStatus("in");
+
+  // useEffect(() => {
+  //   const deleteAsyncStorage = async () => {
+  //     try {
+  //       let allKeys = await AsyncStorage.getAllKeys();
+  //       await AsyncStorage.clear();
+  //       console.log("allJKey", allKeys);
+  //     } catch (error) {
+  //       console.error("Error deleting item from AsyncStorage:", error);
+  //     }
+  //   };
+
+  //   deleteAsyncStorage();
+  // }, [searchQuery]);
 
   useEffect(() => {
     if (searchQuery.trim() === "") {
@@ -63,32 +90,28 @@ export default function InventoryScreen() {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder='Search items...'
+          placeholder="Search items..."
         />
 
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>{items.length}</Text>
+            <Text style={styles.statValue}>{incomingItems.length}</Text>
             <Text style={styles.statLabel}>Total Items</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {items.filter((item) => item.status === "in").length}
-            </Text>
-            <Text style={styles.statLabel}>In Stock</Text>
+            <Text style={styles.statValue}>{getTotalStock()}</Text>
+            <Text style={styles.statLabel}>Total Stock</Text>
           </View>
           <View style={styles.statCard}>
-            <Text style={styles.statValue}>
-              {items.filter((item) => item.status === "out").length}
-            </Text>
-            <Text style={styles.statLabel}>Sold</Text>
+            <Text style={styles.statValue}>{totalQuantityOut}</Text>
+            <Text style={styles.statLabel}>Sold Out</Text>
           </View>
         </View>
 
         {items.length === 0 ? (
           <EmptyState
-            type='items'
-            actionLabel='Add Item'
+            type="items"
+            actionLabel="Add Item"
             onActionPress={() => {
               navigate.push("/(tabs)/incoming");
             }}
@@ -111,7 +134,7 @@ export default function InventoryScreen() {
 
       <View style={styles.fabContainer}>
         <Button
-          title='Add Item'
+          title="Add Item"
           onPress={() => {
             navigate.push("/(tabs)/incoming");
           }}

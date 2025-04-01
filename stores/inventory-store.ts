@@ -17,9 +17,10 @@ interface InventoryState {
 
   // Item actions
   addItem: (
-    item: Omit<Item, "id" | "code" | "createdAt" | "updatedAt" | "status"> & {
-      status?: ItemStatus;
-    },
+    item: Omit<
+      Item,
+      "id" | "code" | "createdAt" | "updatedAt" | "status" | "quantity"
+    > & { status?: ItemStatus; quantity?: number },
   ) => string;
   updateItem: (id: string, updates: Partial<Item>) => void;
   deleteItem: (id: string) => void;
@@ -36,10 +37,24 @@ interface InventoryState {
       purchasePrice: number;
       sellingPrice?: number;
       imageUri?: string;
+      quantity: number;
     },
-    quantity: number,
     notes?: string,
   ) => { itemId: string; transactionId: string; invoiceId?: string };
+
+  // Multiple transactions in one go (for cart checkout)
+  recordMultipleTransactions: (
+    items: {
+      id: string;
+      category: ItemCategory;
+      description: string;
+      purchasePrice: number;
+      sellingPrice: number;
+      imageUri?: string;
+      quantity: number;
+    }[],
+    notes?: string,
+  ) => { transactionIds: string[]; invoiceId: string };
 
   // Filtering and querying
   getItemsByStatus: (status: ItemStatus) => Item[];
@@ -49,6 +64,10 @@ interface InventoryState {
   // Reporting
   getMonthlyProfits: (year?: number) => { month: number; profit: number }[];
   getTotalProfit: () => number;
+
+  // Stock management
+  getTotalStock: () => number;
+  updateStock: (itemId: string, quantity: number, isAddition: boolean) => void;
 }
 
 export const useInventoryStore = create<InventoryState>()(
@@ -65,6 +84,7 @@ export const useInventoryStore = create<InventoryState>()(
           id: Date.now().toString(),
           code: generateItemCode(),
           status: itemData.status || "in",
+          quantity: itemData.quantity || 0,
           createdAt: now,
           updatedAt: now,
           ...itemData,
@@ -102,23 +122,42 @@ export const useInventoryStore = create<InventoryState>()(
       },
 
       // Transaction actions
-      recordTransaction: (type, itemData, quantity, notes) => {
+      recordTransaction: (type, itemData, notes) => {
         const now = new Date().toISOString();
         let itemId = itemData.id;
+        const quantity = itemData.quantity || 1;
 
         // If no item ID provided, create a new item
         if (!itemId) {
           itemId = get().addItem({
             ...itemData,
             status: type,
+            quantity: type === "in" ? quantity : 0,
           });
         } else {
-          // Update existing item status
-          get().updateItem(itemId, {
-            status: type,
-            sellingPrice: itemData.sellingPrice,
-            updatedAt: now,
-          });
+          // Update existing item
+          const existingItem = get().getItemById(itemId);
+
+          if (existingItem) {
+            // Pastikan quantity tidak undefined dengan memberikan default nilai 0
+            const currentQuantity = existingItem.quantity || 0;
+
+            // Update quantity berdasarkan tipe transaksi
+            const newQuantity =
+              type === "in"
+                ? currentQuantity + quantity
+                : Math.max(0, currentQuantity - quantity);
+
+            // Perbarui status item jika quantity menjadi 0
+            const newStatus = newQuantity > 0 ? "in" : "out";
+
+            get().updateItem(itemId, {
+              status: newStatus,
+              quantity: newQuantity,
+              sellingPrice: itemData.sellingPrice,
+              updatedAt: now,
+            });
+          }
         }
 
         // Create transaction record
@@ -172,6 +211,93 @@ export const useInventoryStore = create<InventoryState>()(
         return { itemId, transactionId: transaction.id, invoiceId };
       },
 
+      // Record multiple transactions at once (for cart checkout)
+      recordMultipleTransactions: (items, notes) => {
+        const now = new Date().toISOString();
+        const transactionIds: string[] = [];
+        const invoiceItems: {
+          itemId: string;
+          quantity: number;
+          purchasePrice: number;
+          sellingPrice: number;
+        }[] = [];
+        let totalAmount = 0;
+        let totalProfit = 0;
+
+        // Process each item
+        items.forEach((itemData) => {
+          const itemId = itemData.id;
+          const existingItem = get().getItemById(itemId);
+
+          if (existingItem) {
+            // Pastikan quantity tidak undefined dengan memberikan default nilai 0
+            const currentQuantity = existingItem.quantity || 0;
+            const itemQuantity = itemData.quantity || 0;
+
+            // Update item quantity
+            const newQuantity = Math.max(0, currentQuantity - itemQuantity);
+            const newStatus = newQuantity > 0 ? "in" : "out";
+
+            get().updateItem(itemId, {
+              status: newStatus,
+              quantity: newQuantity,
+              updatedAt: now,
+            });
+
+            // Create transaction record
+            const transaction: Transaction = {
+              id: `${Date.now()}-${itemId}`,
+              itemId,
+              type: "out",
+              quantity: itemQuantity,
+              date: now,
+              notes,
+            };
+
+            set((state) => ({
+              transactions: [...state.transactions, transaction],
+            }));
+
+            transactionIds.push(transaction.id);
+
+            // Calculate profit and amount
+            const profit = calculateProfit(
+              existingItem.purchasePrice,
+              itemData.sellingPrice,
+            );
+            const amount = (itemData.sellingPrice || 0) * itemQuantity;
+
+            totalAmount += amount;
+            totalProfit += profit * itemQuantity;
+
+            // Add to invoice items
+            invoiceItems.push({
+              itemId,
+              quantity: itemQuantity,
+              purchasePrice: existingItem.purchasePrice,
+              sellingPrice: itemData.sellingPrice,
+            });
+          }
+        });
+
+        // Create a single invoice for all items
+        const invoiceId = `INV-${Date.now()}`;
+        const invoice: Invoice = {
+          id: invoiceId,
+          transactionId: transactionIds.join(","), // Join all transaction IDs
+          date: now,
+          items: invoiceItems,
+          totalAmount,
+          profit: totalProfit,
+        };
+
+        set((state) => ({
+          invoices: [...state.invoices, invoice],
+        }));
+
+        return { transactionIds, invoiceId };
+      },
+
       // Filtering and querying
       getItemsByStatus: (status) => {
         return get().items.filter((item) => item.status === status);
@@ -216,6 +342,31 @@ export const useInventoryStore = create<InventoryState>()(
           (total, invoice) => total + invoice.profit,
           0,
         );
+      },
+
+      // Stock management
+      getTotalStock: () => {
+        return get().items.reduce(
+          (total, item) => total + (item.quantity || 0),
+          0,
+        );
+      },
+
+      updateStock: (itemId, quantity, isAddition) => {
+        const item = get().getItemById(itemId);
+        if (item) {
+          // Gunakan item.quantity || 0 untuk mencegah undefined
+          const currentQuantity = item.quantity || 0;
+
+          const newQuantity = isAddition
+            ? currentQuantity + quantity
+            : Math.max(0, currentQuantity - quantity);
+
+          get().updateItem(itemId, {
+            quantity: newQuantity,
+            status: newQuantity > 0 ? "in" : "out",
+          });
+        }
       },
     }),
     {

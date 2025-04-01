@@ -2,10 +2,9 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 
 import { Invoice } from "@/types/inventory";
-import { FileText, ChevronRight } from "lucide-react-native";
-import { Colors } from "react-native/Libraries/NewAppScreen";
-import { formatCurrency, formatDate } from "@/utils/helper";
+import { FileText, ChevronRight, Layers } from "lucide-react-native";
 import { colors, theme } from "@/constants/Colors";
+import { formatCurrency, formatDate } from "@/utils/helper";
 
 interface InvoiceCardProps {
   invoice: Invoice;
@@ -16,6 +15,12 @@ export const InvoiceCard: React.FC<InvoiceCardProps> = ({
   invoice,
   onPress,
 }) => {
+  // Calculate total quantity from all items
+  const totalQuantity = invoice.items.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+  );
+
   return (
     <TouchableOpacity
       style={styles.container}
@@ -24,7 +29,7 @@ export const InvoiceCard: React.FC<InvoiceCardProps> = ({
     >
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <FileText size={20} color={Colors.primary} />
+          <FileText size={20} color={colors.primary} />
         </View>
         <View style={styles.headerContent}>
           <Text style={styles.invoiceId}>{invoice.id}</Text>
@@ -39,6 +44,14 @@ export const InvoiceCard: React.FC<InvoiceCardProps> = ({
         <View style={styles.detailRow}>
           <Text style={styles.detailLabel}>Items</Text>
           <Text style={styles.detailValue}>{invoice.items.length}</Text>
+        </View>
+
+        <View style={styles.detailRow}>
+          <Text style={styles.detailLabel}>Quantity</Text>
+          <View style={styles.quantityContainer}>
+            <Layers size={14} color={colors.text.secondary} />
+            <Text style={styles.detailValue}>{totalQuantity}</Text>
+          </View>
         </View>
 
         <View style={styles.detailRow}>
@@ -124,5 +137,10 @@ const styles = StyleSheet.create({
   },
   loss: {
     color: colors.danger,
+  },
+  quantityContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
 });

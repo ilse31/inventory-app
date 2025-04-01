@@ -15,6 +15,7 @@ export interface Item {
   purchasePrice: number;
   sellingPrice?: number;
   imageUri?: string;
+  quantity?: number;
   status: ItemStatus;
   createdAt: string;
   updatedAt: string;
