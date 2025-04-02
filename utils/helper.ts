@@ -11,9 +11,11 @@ export const generateItemCode = (prefix = "ITM"): string => {
 
 // Format currency values
 export const formatCurrency = (amount: number): string => {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("id-ID", {
     style: "currency",
-    currency: "USD",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+    minimumFractionDigits: 0,
   }).format(amount);
 };
 

@@ -512,9 +512,7 @@ export default function OutgoingScreen() {
                   onChangeText={setCurrentSellingPrice}
                   placeholder="0.00"
                   keyboardType="numeric"
-                  leftIcon={
-                    <DollarSign size={16} color={colors.text.secondary} />
-                  }
+                  leftIcon={<Text style={styles.currencySymbol}>Rp</Text>}
                 />
 
                 <View style={styles.profitPreview}>
@@ -589,6 +587,12 @@ const styles = StyleSheet.create({
   addButtonText: {
     color: colors.text.light,
     fontWeight: "500",
+    marginLeft: 4,
+  },
+  currencySymbol: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text.secondary,
     marginLeft: 4,
   },
   emptyCart: {

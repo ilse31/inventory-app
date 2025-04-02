@@ -228,7 +228,7 @@ export default function IncomingScreen() {
             placeholder="0.00"
             keyboardType="numeric"
             error={errors.purchasePrice}
-            leftIcon={<DollarSign size={16} color={colors.text.secondary} />}
+            leftIcon={<Text style={styles.currencySymbol}>Rp</Text>}
           />
 
           <FormInput
@@ -346,5 +346,11 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     marginTop: theme.spacing.lg,
+  },
+  currencySymbol: {
+    fontSize: 16,
+    fontWeight: "500",
+    color: colors.text.secondary,
+    marginLeft: 4,
   },
 });
