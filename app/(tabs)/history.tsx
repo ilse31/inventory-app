@@ -30,14 +30,14 @@ export default function HistoryScreen() {
   const filteredInvoices =
     searchQuery.trim() === ""
       ? [...invoices].sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
         )
       : invoices
           .filter((invoice) =>
-            invoice.id.toLowerCase().includes(searchQuery.toLowerCase()),
+            invoice.id.toLowerCase().includes(searchQuery.toLowerCase())
           )
           .sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
           );
 
   const handleInvoicePress = (invoice: Invoice) => {
@@ -72,11 +72,11 @@ export default function HistoryScreen() {
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search by invoice number..."
+          placeholder='Search by invoice number...'
         />
 
         {invoices.length === 0 ? (
-          <EmptyState type="history" />
+          <EmptyState type='history' />
         ) : (
           <FlatList
             data={filteredInvoices}
@@ -95,7 +95,7 @@ export default function HistoryScreen() {
       {/* Invoice Detail Modal */}
       <Modal
         visible={modalVisible}
-        animationType="slide"
+        animationType='slide'
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
@@ -186,7 +186,7 @@ export default function HistoryScreen() {
                           >
                             {formatCurrency(
                               invoiceItem.sellingPrice -
-                                invoiceItem.purchasePrice,
+                                invoiceItem.purchasePrice
                             )}
                           </Text>
                         </View>
@@ -195,7 +195,7 @@ export default function HistoryScreen() {
                           <Text style={styles.priceLabel}>Total:</Text>
                           <Text style={styles.priceValue}>
                             {formatCurrency(
-                              invoiceItem.sellingPrice * invoiceItem.quantity,
+                              invoiceItem.sellingPrice * invoiceItem.quantity
                             )}
                           </Text>
                         </View>
@@ -211,7 +211,7 @@ export default function HistoryScreen() {
                             {formatCurrency(
                               (invoiceItem.sellingPrice -
                                 invoiceItem.purchasePrice) *
-                                invoiceItem.quantity,
+                                invoiceItem.quantity
                             )}
                           </Text>
                         </View>
@@ -285,7 +285,7 @@ export default function HistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,

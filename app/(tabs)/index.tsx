@@ -33,7 +33,7 @@ export default function InventoryScreen() {
 
   const totalQuantity = items.reduce(
     (sum, item) => sum + (item.quantity || 0),
-    0,
+    0
   );
 
   // Get only incoming items
@@ -75,7 +75,7 @@ export default function InventoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Stack.Screen
+      {/* <Stack.Screen
         options={{
           title: "Inventory",
           headerRight: () => (
@@ -84,13 +84,13 @@ export default function InventoryScreen() {
             </TouchableOpacity>
           ),
         }}
-      />
+      /> */}
 
       <View style={styles.content}>
         <SearchBar
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholder="Search items..."
+          placeholder='Search items...'
         />
 
         <View style={styles.statsContainer}>
@@ -110,8 +110,8 @@ export default function InventoryScreen() {
 
         {items.length === 0 ? (
           <EmptyState
-            type="items"
-            actionLabel="Add Item"
+            type='items'
+            actionLabel='Add Item'
             onActionPress={() => {
               navigate.push("/(tabs)/incoming");
             }}
@@ -134,7 +134,7 @@ export default function InventoryScreen() {
 
       <View style={styles.fabContainer}>
         <Button
-          title="Add Item"
+          title='Add Item'
           onPress={() => {
             navigate.push("/(tabs)/incoming");
           }}
@@ -149,7 +149,7 @@ export default function InventoryScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,

@@ -42,7 +42,7 @@ export default function ReportsScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <Stack.Screen options={{ title: "Profit Reports" }} />
-        <EmptyState type="reports" />
+        <EmptyState type='reports' />
       </SafeAreaView>
     );
   }
@@ -115,7 +115,7 @@ export default function ReportsScreen() {
                 <Text style={styles.monthName}>
                   {new Date(selectedYear, item.month).toLocaleString(
                     "default",
-                    { month: "long" },
+                    { month: "long" }
                   )}
                 </Text>
                 <Text
@@ -124,8 +124,8 @@ export default function ReportsScreen() {
                     item.profit > 0
                       ? styles.positiveProfit
                       : item.profit < 0
-                        ? styles.negativeProfit
-                        : {},
+                      ? styles.negativeProfit
+                      : {},
                   ]}
                 >
                   {formatCurrency(item.profit)}
@@ -142,7 +142,7 @@ export default function ReportsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
   },
   scrollView: {
     flex: 1,

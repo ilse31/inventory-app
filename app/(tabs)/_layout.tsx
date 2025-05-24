@@ -21,6 +21,7 @@ export default function TabLayout() {
         headerStyle: {
           backgroundColor: colors.background,
         },
+        headerShown: false,
         headerTitleStyle: {
           color: colors.text.primary,
           fontWeight: "600",
@@ -28,16 +29,17 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name='index'
         options={{
           title: "Inventory",
+
           tabBarIcon: ({ color, size }) => (
             <Package size={size} color={color} />
           ),
         }}
       />
       <Tabs.Screen
-        name="incoming"
+        name='incoming'
         options={{
           title: "Incoming",
           tabBarIcon: ({ color, size }) => (
@@ -46,7 +48,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="outgoing"
+        name='outgoing'
         options={{
           title: "Outgoing",
           tabBarIcon: ({ color, size }) => (
@@ -55,7 +57,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="history"
+        name='history'
         options={{
           title: "History",
           tabBarIcon: ({ color, size }) => (
@@ -64,7 +66,7 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="reports"
+        name='reports'
         options={{
           title: "Reports",
           tabBarIcon: ({ color, size }) => (

@@ -73,8 +73,8 @@ export default function OutgoingScreen() {
           (item) =>
             item.description.toLowerCase().includes(query) ||
             item.code.toLowerCase().includes(query) ||
-            item.category.toLowerCase().includes(query),
-        ),
+            item.category.toLowerCase().includes(query)
+        )
       );
     }
   }, [searchQuery, items, getItemsByStatus]);
@@ -117,7 +117,7 @@ export default function OutgoingScreen() {
       Alert.alert(
         "Success",
         `Items have been marked as sold. Invoice #${invoiceId} created.`,
-        [{ text: "OK" }],
+        [{ text: "OK" }]
       );
     } catch (error) {
       console.error("Error recording transaction:", error);
@@ -132,7 +132,7 @@ export default function OutgoingScreen() {
 
     // Check if item is already in cart
     const existingCartItem = cart.find(
-      (cartItem) => cartItem.item.id === item.id,
+      (cartItem) => cartItem.item.id === item.id
     );
 
     if (existingCartItem) {
@@ -170,7 +170,7 @@ export default function OutgoingScreen() {
     ) {
       Alert.alert(
         "Invalid Quantity",
-        "Please enter a valid quantity (whole number)",
+        "Please enter a valid quantity (whole number)"
       );
       return;
     }
@@ -178,14 +178,14 @@ export default function OutgoingScreen() {
     if (Number(currentQuantity) > (currentItem.quantity || 0)) {
       Alert.alert(
         "Insufficient Stock",
-        `Only ${currentItem.quantity} available in stock`,
+        `Only ${currentItem.quantity} available in stock`
       );
       return;
     }
 
     // Check if item already exists in cart
     const existingItemIndex = cart.findIndex(
-      (cartItem) => cartItem.item.id === currentItem.id,
+      (cartItem) => cartItem.item.id === currentItem.id
     );
 
     if (existingItemIndex >= 0) {
@@ -276,7 +276,7 @@ export default function OutgoingScreen() {
             <Text style={styles.cartItemLabel}>Profit:</Text>
             <Text style={[styles.cartItemValue, styles.profitText]}>
               {formatCurrency(
-                (item.sellingPrice - item.item.purchasePrice) * item.quantity,
+                (item.sellingPrice - item.item.purchasePrice) * item.quantity
               )}
             </Text>
           </View>
@@ -324,9 +324,9 @@ export default function OutgoingScreen() {
                   Add items to record a sale
                 </Text>
                 <Button
-                  title="Add Items"
+                  title='Add Items'
                   onPress={() => setModalVisible(true)}
-                  variant="outline"
+                  variant='outline'
                   style={styles.emptyCartButton}
                 />
               </View>
@@ -375,19 +375,19 @@ export default function OutgoingScreen() {
             {errors.cart && <Text style={styles.errorText}>{errors.cart}</Text>}
 
             <FormInput
-              label="Notes (Optional)"
+              label='Notes (Optional)'
               value={notes}
               onChangeText={setNotes}
-              placeholder="Add any additional notes"
+              placeholder='Add any additional notes'
               multiline
               numberOfLines={3}
-              textAlignVertical="top"
+              textAlignVertical='top'
               style={styles.notesInput}
             />
           </View>
 
           <Button
-            title="Record Sale"
+            title='Record Sale'
             onPress={handleSubmit}
             loading={loading}
             icon={<Save size={18} color={colors.text.light} />}
@@ -401,7 +401,7 @@ export default function OutgoingScreen() {
       {/* Item Selection Modal */}
       <Modal
         visible={modalVisible}
-        animationType="slide"
+        animationType='slide'
         transparent={true}
         onRequestClose={() => setModalVisible(false)}
       >
@@ -420,7 +420,7 @@ export default function OutgoingScreen() {
             <SearchBar
               value={searchQuery}
               onChangeText={setSearchQuery}
-              placeholder="Search items..."
+              placeholder='Search items...'
             />
 
             {filteredItems.length === 0 ? (
@@ -443,7 +443,7 @@ export default function OutgoingScreen() {
       {/* Item Detail Modal */}
       <Modal
         visible={itemModalVisible}
-        animationType="slide"
+        animationType='slide'
         transparent={true}
         onRequestClose={() => setItemModalVisible(false)}
       >
@@ -471,7 +471,7 @@ export default function OutgoingScreen() {
                       onPress={() => {
                         const newQuantity = Math.max(
                           1,
-                          Number(currentQuantity) - 1,
+                          Number(currentQuantity) - 1
                         );
                         setCurrentQuantity(newQuantity.toString());
                       }}
@@ -483,7 +483,7 @@ export default function OutgoingScreen() {
                       style={styles.quantityInput}
                       value={currentQuantity}
                       onChangeText={setCurrentQuantity}
-                      keyboardType="numeric"
+                      keyboardType='numeric'
                     />
 
                     <TouchableOpacity
@@ -491,7 +491,7 @@ export default function OutgoingScreen() {
                       onPress={() => {
                         const newQuantity = Math.min(
                           currentItem.quantity || 0,
-                          Number(currentQuantity) + 1,
+                          Number(currentQuantity) + 1
                         );
                         setCurrentQuantity(newQuantity.toString());
                       }}
@@ -507,11 +507,11 @@ export default function OutgoingScreen() {
                 </Text>
 
                 <FormInput
-                  label="Selling Price"
+                  label='Selling Price'
                   value={currentSellingPrice}
                   onChangeText={setCurrentSellingPrice}
-                  placeholder="0.00"
-                  keyboardType="numeric"
+                  placeholder='0.00'
+                  keyboardType='numeric'
                   leftIcon={<Text style={styles.currencySymbol}>Rp</Text>}
                 />
 
@@ -522,14 +522,14 @@ export default function OutgoingScreen() {
                       ? formatCurrency(
                           (Number(currentSellingPrice) -
                             currentItem.purchasePrice) *
-                            Number(currentQuantity),
+                            Number(currentQuantity)
                         )
                       : formatCurrency(0)}
                   </Text>
                 </View>
 
                 <Button
-                  title="Add to Cart"
+                  title='Add to Cart'
                   onPress={addToCart}
                   icon={<ShoppingCart size={18} color={colors.text.light} />}
                   fullWidth
@@ -547,7 +547,7 @@ export default function OutgoingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
   },
   keyboardAvoidingView: {
     flex: 1,

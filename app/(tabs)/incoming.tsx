@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Platform,
   Alert,
   SafeAreaView,
   TouchableOpacity,
@@ -17,7 +16,7 @@ import { Button } from "@/components/Button";
 import { CategoryPicker } from "@/components/CategoryPicker";
 import { ImagePicker } from "@/components/ImagePicker";
 import { ItemCategory, Item } from "@/types/inventory";
-import { DollarSign, Save, Plus, Package, Layers } from "lucide-react-native";
+import { Plus, Layers, Save } from "lucide-react-native";
 import { BottomSheet } from "@/components/BottomSheet";
 import { ItemCard } from "@/components/ItemCard";
 import { EmptyState } from "@/components/EmptyState";
@@ -26,15 +25,18 @@ import { colors, theme } from "@/constants/Colors";
 import { formatDate } from "@/utils/helper";
 
 export default function IncomingScreen() {
-  const { recordTransaction, items, getItemsByStatus, getTotalStock } =
+  const { recordTransaction, getItemsByStatus, getTotalStock } =
     useInventoryStore();
 
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<ItemCategory>("electronics");
-  const [purchasePrice, setPurchasePrice] = useState("");
-  const [quantity, setQuantity] = useState("1"); // New quantity field
-  const [imageUri, setImageUri] = useState<string | undefined>();
-  const [notes, setNotes] = useState("");
+  const [formState, setFormState] = useState({
+    description: "",
+    category: "electronics" as ItemCategory,
+    purchasePrice: "",
+    quantity: "1",
+    imageUri: undefined as string | undefined,
+    notes: "",
+  });
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [bottomSheetVisible, setBottomSheetVisible] = useState(false);
@@ -45,22 +47,25 @@ export default function IncomingScreen() {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!description.trim()) {
+    if (!formState.description.trim()) {
       newErrors.description = "Description is required";
     }
 
-    if (!purchasePrice.trim()) {
+    if (!formState.purchasePrice.trim()) {
       newErrors.purchasePrice = "Purchase price is required";
-    } else if (isNaN(Number(purchasePrice)) || Number(purchasePrice) <= 0) {
+    } else if (
+      isNaN(Number(formState.purchasePrice)) ||
+      Number(formState.purchasePrice) <= 0
+    ) {
       newErrors.purchasePrice = "Enter a valid price";
     }
 
-    if (!quantity.trim()) {
+    if (!formState.quantity.trim()) {
       newErrors.quantity = "Quantity is required";
     } else if (
-      isNaN(Number(quantity)) ||
-      Number(quantity) <= 0 ||
-      !Number.isInteger(Number(quantity))
+      isNaN(Number(formState.quantity)) ||
+      Number(formState.quantity) <= 0 ||
+      !Number.isInteger(Number(formState.quantity))
     ) {
       newErrors.quantity = "Enter a valid quantity (whole number)";
     }
@@ -78,25 +83,25 @@ export default function IncomingScreen() {
       recordTransaction(
         "in",
         {
-          category,
-          description,
-          purchasePrice: Number(purchasePrice),
-          quantity: Number(quantity),
-          imageUri,
+          category: formState.category,
+          description: formState.description,
+          purchasePrice: Number(formState.purchasePrice),
+          quantity: Number(formState.quantity),
+          imageUri: formState.imageUri,
         },
-        notes,
+        formState.notes
       );
 
       // Reset form
-      setDescription("");
-      setCategory("electronics");
-      setPurchasePrice("");
-      setQuantity("1");
-      setImageUri(undefined);
-      setNotes("");
+      setFormState({
+        description: "",
+        category: "electronics",
+        purchasePrice: "",
+        quantity: "1",
+        imageUri: undefined,
+        notes: "",
+      });
       setErrors({});
-
-      // Close bottom sheet
       setBottomSheetVisible(false);
 
       Alert.alert("Success", "Item has been added to inventory", [
@@ -112,14 +117,15 @@ export default function IncomingScreen() {
 
   const openBottomSheet = () => {
     // Reset form when opening
-    setDescription("");
-    setCategory("electronics");
-    setPurchasePrice("");
-    setQuantity("1");
-    setImageUri(undefined);
-    setNotes("");
+    setFormState({
+      description: "",
+      category: "electronics",
+      purchasePrice: "",
+      quantity: "1",
+      imageUri: undefined,
+      notes: "",
+    });
     setErrors({});
-
     setBottomSheetVisible(true);
   };
 
@@ -158,7 +164,7 @@ export default function IncomingScreen() {
               {incomingItems.length > 0
                 ? formatDate(
                     incomingItems[incomingItems.length - 1].createdAt,
-                    "MMM dd",
+                    "MMM dd"
                   )
                 : "-"}
             </Text>
@@ -168,8 +174,8 @@ export default function IncomingScreen() {
 
         {incomingItems.length === 0 ? (
           <EmptyState
-            type="items"
-            actionLabel="Add Item"
+            type='items'
+            actionLabel='Add Item'
             onActionPress={openBottomSheet}
           />
         ) : (
@@ -184,7 +190,7 @@ export default function IncomingScreen() {
 
       <View style={styles.fabContainer}>
         <Button
-          title="Add Item"
+          title='Add Item'
           onPress={openBottomSheet}
           icon={<Plus size={20} color={colors.text.light} />}
           style={styles.fab}
@@ -195,7 +201,7 @@ export default function IncomingScreen() {
       <BottomSheet
         visible={bottomSheetVisible}
         onClose={() => setBottomSheetVisible(false)}
-        height="90%"
+        height='90%'
       >
         <View style={styles.bottomSheetHeader}>
           <Text style={styles.bottomSheetTitle}>Add Incoming Item</Text>
@@ -207,60 +213,71 @@ export default function IncomingScreen() {
           showsVerticalScrollIndicator={false}
         >
           <FormInput
-            label="Description"
-            value={description}
-            onChangeText={setDescription}
-            placeholder="Enter item description"
+            label='Description'
+            value={formState.description}
+            onChangeText={(text) =>
+              setFormState((prev) => ({ ...prev, description: text }))
+            }
+            placeholder='Enter item description'
             error={errors.description}
           />
 
           <CategoryPicker
-            label="Category"
-            value={category}
-            onChange={setCategory}
+            label='Category'
+            value={formState.category}
+            onChange={(value) =>
+              setFormState((prev) => ({ ...prev, category: value }))
+            }
             error={errors.category}
           />
 
           <FormInput
-            label="Purchase Price"
-            value={purchasePrice}
-            onChangeText={setPurchasePrice}
-            placeholder="0.00"
-            keyboardType="numeric"
+            label='Purchase Price'
+            value={formState.purchasePrice}
+            onChangeText={(text) =>
+              setFormState((prev) => ({ ...prev, purchasePrice: text }))
+            }
+            placeholder='0.00'
+            keyboardType='numeric'
             error={errors.purchasePrice}
             leftIcon={<Text style={styles.currencySymbol}>Rp</Text>}
           />
 
           <FormInput
-            label="Quantity"
-            value={quantity}
-            onChangeText={setQuantity}
-            placeholder="1"
-            keyboardType="numeric"
+            label='Quantity'
+            value={formState.quantity}
+            onChangeText={(text) =>
+              setFormState((prev) => ({ ...prev, quantity: text }))
+            }
+            placeholder='1'
+            keyboardType='numeric'
             error={errors.quantity}
             leftIcon={<Layers size={16} color={colors.text.secondary} />}
           />
 
           <ImagePicker
-            label="Item Image (Optional)"
-            value={imageUri}
-            onChange={setImageUri}
-            error={errors.imageUri}
+            label='Item Image (Optional)'
+            value={formState.imageUri}
+            onChange={(uri) =>
+              setFormState((prev) => ({ ...prev, imageUri: uri }))
+            }
           />
 
           <FormInput
-            label="Notes (Optional)"
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Add any additional notes"
+            label='Notes (Optional)'
+            value={formState.notes}
+            onChangeText={(text) =>
+              setFormState((prev) => ({ ...prev, notes: text }))
+            }
+            placeholder='Add any additional notes'
             multiline
             numberOfLines={3}
-            textAlignVertical="top"
+            textAlignVertical='top'
             style={styles.notesInput}
           />
 
           <Button
-            title="Save Item"
+            title='Save Item'
             onPress={handleSubmit}
             loading={loading}
             icon={<Save size={18} color={colors.text.light} />}
@@ -276,7 +293,7 @@ export default function IncomingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.card,
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,
