@@ -1,0 +1,96 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ThemedText renders correctly with default props 1`] = `
+<Text
+  style={
+    [
+      {
+        "color": "#333333",
+      },
+      {
+        "fontSize": 16,
+        "lineHeight": 24,
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]
+  }
+>
+  Snapshot test!
+</Text>
+`;
+
+exports[`ThemedText renders with custom lightColor 1`] = `
+<Text
+  style={
+    [
+      {
+        "color": "#ff0000",
+      },
+      {
+        "fontSize": 16,
+        "lineHeight": 24,
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]
+  }
+>
+  Red Text
+</Text>
+`;
+
+exports[`ThemedText renders with style prop 1`] = `
+<Text
+  style={
+    [
+      {
+        "color": "#333333",
+      },
+      {
+        "fontSize": 16,
+        "lineHeight": 24,
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      {
+        "fontSize": 30,
+      },
+    ]
+  }
+>
+  Styled Text
+</Text>
+`;
+
+exports[`ThemedText renders with type="title" 1`] = `
+<Text
+  style={
+    [
+      {
+        "color": "#333333",
+      },
+      undefined,
+      {
+        "fontSize": 32,
+        "fontWeight": "bold",
+        "lineHeight": 32,
+      },
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]
+  }
+>
+  Title
+</Text>
+`;
